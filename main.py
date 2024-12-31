@@ -1,5 +1,6 @@
 import pandas as pd
 import logging
+from openpyxl import load_workbook
 
 # Set up logging
 logging.basicConfig(
@@ -40,12 +41,30 @@ pivot_table['Total Count of ZONE'] = pivot_table[[
     'ZONE_above 1Lac'
 ]].sum(axis=1)
 
-
 logging.info("Saving the resultant file into an excel sheet")
-pivot_file_path = 'OTS_TURN_UP_CATEGORISATION.xlsx'
-with pd.ExcelWriter(pivot_file_path, engine='openpyxl') as writer:
-    pivot_table.to_excel(writer, sheet_name='Pivot Table')
-    
+pivot_file_path = 'raw_data/OTS_TURN_UP_CATEGORISATION.xlsx'
+pivot_table.to_excel(pivot_file_path, sheet_name='Pivot Table')
+
+# Autofit columns
+logging.info("Autofitting columns in the Excel sheet")
+wb = load_workbook(pivot_file_path)
+sheet = wb.active
+
+for col in sheet.columns:
+    max_length = 0
+    column = col[0].column_letter  # Get the column letter (e.g., A, B, C)
+    for cell in col:
+        try:
+            # Calculate the maximum content length
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        except:
+            pass
+    adjusted_width = max_length + 2  # Add some padding
+    sheet.column_dimensions[column].width = adjusted_width
+
+# Save the updated Excel file
+wb.save(pivot_file_path)
 
 logging.info(f"Successfully created the {pivot_file_path}")
 print(f"Successfully created the {pivot_file_path}")
