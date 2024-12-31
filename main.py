@@ -1,39 +1,52 @@
 import pandas as pd
+import logging
 
-def create_pivot_table(data, index_cols, columns_col, values_col, aggfunc='sum'):
-    pivot_table = pd.pivot_table(
-        data,
-        index=index_cols,
-        columns=columns_col,
-        values=values_col,
-        aggfunc=aggfunc
-    )
+# Set up logging
+logging.basicConfig(
+    filename='pivot_table_logs.log',  # File to store logs
+    level=logging.INFO,  # Log level
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
-    return pivot_table
+file_path = 'raw_data/PVVNL_OTS_NOV-24_REPORT.csv'
+logging.info(f"Reading the file name: {file_path}")
+df = pd.read_csv(file_path)
 
-file_path = 'demo.xlsx'
-df = pd.read_excel(file_path)
+logging.info("Adding the 'PAID_SLAB' column based of 'TOTAL_PAID' column")
 df['PAID_SLAB']= df['TOTAL_PAID'].apply(lambda x: "Below 50K" if x < 50000 else "50K to 1Lac" if (x>=50000 and x<100000) else "above 1Lac")
-df.to_excel('final.xlsx', index=False)
- 
-file_path = 'final.xlsx'
-df = pd.read_excel(file_path)
-print(df['ZONE'].shape)
-print(df['ZONE'].dtype)
-print(df['ZONE'].head())
 
-# Step 2: Create a Pivot Table using pandas
-pivot_table = pd.pivot_table(df, 
-                             values=['TOTAL_PAID'], 
-                             index=['ZONE', 'CIRCLE','DIVISION_NAME'], 
+logging.info("Create a Pivot Table using pandas")
+pivot_table = pd.pivot_table(df,
+                             values=['TOTAL_PAID'],
+                             index=['ZONE', 'CIRCLE', 'DIVISION_NAME'],
                              columns='PAID_SLAB',
-                             aggfunc={'TOTAL_PAID': 'sum','ZONE': 'count'}, 
+                             aggfunc={'ZONE': 'count', 'TOTAL_PAID': 'sum'},
                              fill_value=0)
 
-# Step 3: Create a new Excel workbook to write the pivot table
-pivot_file_path = 'pivot_table.xlsx'
+logging.info("Flatten multi-level columns")
+pivot_table.columns = [f'{col}_{agg}' for col, agg in pivot_table.columns]
+
+logging.info("Add total columns for TOTAL_PAID")
+pivot_table['Total Sum of TOTAL_PAID'] = pivot_table[[
+    'TOTAL_PAID_50K to 1Lac',
+    'TOTAL_PAID_Below 50K',
+    'TOTAL_PAID_above 1Lac'
+]].sum(axis=1)
+
+logging.info("Add total columns for ZONE")
+pivot_table['Total Count of ZONE'] = pivot_table[[
+    'ZONE_50K to 1Lac',
+    'ZONE_Below 50K',
+    'ZONE_above 1Lac'
+]].sum(axis=1)
+
+
+logging.info("Saving the resultant file into an excel sheet")
+pivot_file_path = 'OTS_TURN_UP_CATEGORISATION.xlsx'
 with pd.ExcelWriter(pivot_file_path, engine='openpyxl') as writer:
     pivot_table.to_excel(writer, sheet_name='Pivot Table')
+    
 
-print(f"Pivot table written to {pivot_file_path}")
+logging.info(f"Successfully created the {pivot_file_path}")
+print(f"Successfully created the {pivot_file_path}")
 
